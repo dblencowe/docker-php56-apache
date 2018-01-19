@@ -6,15 +6,16 @@ MAINTAINER dblencowe <me@dblencowe.com>
 RUN sed -i 's/docker-php-\(ext-$ext.ini\)/\1/' /usr/local/bin/docker-php-ext-install
 
 # Install other needed extensions
-RUN apt-get update && apt-get install -y libfreetype6 git-core mysql-client ghostscript imagemagick libjpeg62-turbo libmcrypt4 libpng12-0 sendmail --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y libicu52 zlib1g-dev build-essential libfreetype6 git-core mysql-client ghostscript imagemagick libjpeg62-turbo libmcrypt4 libpng12-0 sendmail --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN buildDeps=" \
         libfreetype6-dev \
         libjpeg-dev \
         libldap2-dev \
         libmcrypt-dev \
         libpng12-dev \
-        zlib1g-dev \
         libmagickwand-dev \
+        libxml2-dev \
+        libicu-dev \
     "; \
     set -x \
     && apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
@@ -28,6 +29,8 @@ RUN buildDeps=" \
     && docker-php-ext-install opcache \
     && docker-php-ext-install pdo_mysql \
     && docker-php-ext-install zip \
+    && docker-php-ext-install soap \
+    && docker-php-ext-install intl \
     && pecl install imagick \
     && docker-php-ext-enable imagick \
     && apt-get purge -y --auto-remove $buildDeps \
@@ -38,7 +41,11 @@ RUN buildDeps=" \
     && curl -L https://pecl.php.net/get/xdebug-2.3.3.tgz >> /usr/src/php/ext/xdebug.tgz \
     && tar -xf /usr/src/php/ext/xdebug.tgz -C /usr/src/php/ext/ \
     && rm /usr/src/php/ext/xdebug.tgz \
-    && docker-php-ext-install xdebug-2.3.3
+    && docker-php-ext-install xdebug-2.3.3 \
+    && cd /root \
+    && curl -sL https://deb.nodesource.com/setup_6.x -o nodesource_setup.sh \
+    && bash /root/nodesource_setup.sh \
+    && apt-get install nodejs
 
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
@@ -52,16 +59,21 @@ RUN { \
         echo 'opcache.enable_cli=1'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
+RUN { \
+        echo 'xdebug.remote_enable=1'; \
+        echo 'xdebug.remote_handler=dbgp'; \
+        echo 'xdebug.remote_connect_back=1'; \
+    } >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
 
 # PECL extensions
-RUN pecl install APCu-4.0.10 redis \
-    && docker-php-ext-enable apcu redis
+RUN pecl install redis memcache \
+    && docker-php-ext-enable redis memcache
 # Install Composer for Laravel
 RUN curl -sS https://getcomposer.org/installer | php \
     && mv composer.phar /usr/local/bin/composer
 
 # Setup timezone to Etc/UTC
-RUN cat /usr/src/php/php.ini-production | sed 's/^;\(date.timezone.*\)/\1 \"Etc\/UTC\"/' > /usr/local/etc/php/php.ini
+RUN cat /usr/src/php/php.ini-development | sed 's/^;\(date.timezone.*\)/\1 \"Europe\/London\"/' > /usr/local/etc/php/php.ini
 
 # Disable cgi.fix_pathinfo in php.ini
 RUN sed -i 's/;\(cgi\.fix_pathinfo=\)1/\10/' /usr/local/etc/php/php.ini
@@ -72,6 +84,7 @@ COPY 000-default.conf /etc/apache2/sites-available/000-default.conf
 RUN usermod -u 1000 www-data && a2enmod rewrite
 
 RUN rm -f /var/run/apache2/apache2.pid
+RUN /usr/sbin/apache2ctl stop
 
 CMD ["/usr/sbin/apache2ctl", "-D", "FOREGROUND"]
 
