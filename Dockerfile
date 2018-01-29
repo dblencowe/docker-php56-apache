@@ -1,6 +1,6 @@
 # Dockerfile
 FROM php:5.6-apache
-MAINTAINER dblencowe <me@dblencowe.com>
+LABEL author="dblencowe <me@dblencowe.com>" 
 
 # Fix docker-php-ext-install script error
 RUN sed -i 's/docker-php-\(ext-$ext.ini\)/\1/' /usr/local/bin/docker-php-ext-install
@@ -50,13 +50,8 @@ RUN buildDeps=" \
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
 RUN { \
-        echo 'opcache.enable=1'; \
-        echo 'opcache.memory_consumption=128'; \
-        echo 'opcache.interned_strings_buffer=8'; \
-        echo 'opcache.max_accelerated_files=4000'; \
-        echo 'opcache.revalidate_freq=60'; \
-        echo 'opcache.fast_shutdown=1'; \
-        echo 'opcache.enable_cli=1'; \
+        echo 'opcache.enable=0'; \
+        echo 'opcache.enable_cli=0'; \
     } > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
 RUN { \
